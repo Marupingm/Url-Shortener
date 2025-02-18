@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Shortener</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .url-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #alertBox {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="alertBox"></div>
+    <div class="container py-5">
+        <h1 class="text-center mb-4">URL Shortener</h1>
+        
+        <!-- URL Input Form -->
+        <div class="row justify-content-center mb-5">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-body">
+                        <form id="urlForm">
+                            <div class="mb-3">
+                                <label for="longUrl" class="form-label">Enter Long URL</label>
+                                <input type="url" class="form-control" id="longUrl" required 
+                                       placeholder="https://example.com">
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                Shorten URL
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- URL List -->
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Shortened URLs</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadUrls()">
+                            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="card-body url-list">
+                        <div id="urlList" class="list-group"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showAlert(message, type = 'danger') {
+            const alertBox = document.getElementById('alertBox');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show`;
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            alertBox.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Load URLs on page load
+        document.addEventListener('DOMContentLoaded', loadUrls);
+
+        // Handle form submission
+        document.getElementById('urlForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const spinner = submitBtn.querySelector('.spinner-border');
+            const longUrl = document.getElementById('longUrl').value;
+
+            // Show loading state
+            form.classList.add('loading');
+            submitBtn.disabled = true;
+            spinner.classList.remove('d-none');
+
+            try {
+                const response = await fetch('/api/shorten', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ longUrl }),
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    document.getElementById('longUrl').value = '';
+                    showAlert('URL shortened successfully!', 'success');
+                    await loadUrls();
+                } else {
+                    showAlert(data.error || 'Error shortening URL');
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                showAlert('Network error. Please try again.');
+            } finally {
+                // Reset loading state
+                form.classList.remove('loading');
+                submitBtn.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        });
+
+        // Load all URLs
+        async function loadUrls() {
+            const urlList = document.getElementById('urlList');
+            const refreshBtn = document.querySelector('.card-header button');
+            const spinner = refreshBtn.querySelector('.spinner-border');
+
+            // Show loading state
+            refreshBtn.disabled = true;
+            spinner.classList.remove('d-none');
+            urlList.innerHTML = '<div class="text-center py-3">Loading...</div>';
+
+            try {
+                const response = await fetch('/api/urls');
+                const urls = await response.json();
+                
+                if (urls.length === 0) {
+                    urlList.innerHTML = '<div class="text-center py-3 text-muted">No URLs found</div>';
+                    return;
+                }
+
+                urlList.innerHTML = urls.map(url => `
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">Short URL: 
+                                    <a href="${url.shortUrl}" target="_blank">${url.shortUrl}</a>
+                                    <button class="btn btn-sm btn-link" onclick="copyToClipboard('${url.shortUrl}')">
+                                        Copy
+                                    </button>
+                                </h6>
+                                <small class="text-muted">Original URL: ${url.longUrl}</small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted d-block">Clicks: ${url.clicks}</small>
+                                <small class="text-muted">${new Date(url.createdAt).toLocaleDateString()}</small>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Error:', err);
+                urlList.innerHTML = '<div class="text-center py-3 text-danger">Error loading URLs</div>';
+                showAlert('Error loading URLs. Please try again.');
+            } finally {
+                // Reset loading state
+                refreshBtn.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        }
+
+        // Copy to clipboard function
+        async function copyToClipboard(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showAlert('URL copied to clipboard!', 'success');
+            } catch (err) {
+                console.error('Error copying to clipboard:', err);
+                showAlert('Error copying to clipboard');
+            }
+        }
+    </script>
+</body>
+</html> 
