@@ -1,37 +1,21 @@
-# URL Shortener
+# URL Shortener Service
 
-A simple URL shortener application built with Node.js, Express, and MongoDB.
+A modern URL shortening service that converts long URLs into short, easy-to-share links. This application provides analytics on link usage and offers both public and authenticated user features.
 
 ## Features
+- Quick URL shortening with customizable slugs
+- QR code generation for shortened links
+- Click tracking and analytics dashboard
+- User accounts for managing multiple links
+- Link expiration settings
+- Password protection for sensitive links
+- API access for third-party integration
 
-- Create short URLs from long URLs
-- Track click counts
-- View URL history
-- Bootstrap UI
-- MongoDB storage
-
-## Setup
-
-1. Install dependencies:
-```bash
-npm install
-```
-
-2. Create `.env` file:
-```
-MONGODB_URI=your_mongodb_connection_string
-PORT=3000
-BASE_URL=http://localhost:3000
-```
-
-3. Run the app:
-```bash
-npm run dev  # Development
-npm start    # Production
-```
-
-## API Endpoints
-
-- `POST /api/shorten` - Create short URL
-- `GET /:code` - Redirect to long URL
-- `GET /api/urls` - List all URLs 
+## Technologies
+- Node.js and Express backend
+- React frontend with responsive design
+- MongoDB for data storage
+- Redis for caching and rate limiting
+- JWT for authentication
+- Chart.js for analytics visualization
+- Docker containerization
